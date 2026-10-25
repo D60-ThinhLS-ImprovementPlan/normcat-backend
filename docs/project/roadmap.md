@@ -10,19 +10,19 @@ Toàn bộ 13 Issues đã được nạp lên GitHub với đầy đủ Acceptan
 
 | Issue | Tiêu đề Issue | Epic / Nhóm | Priority | Estimate | Trạng thái |
 |:---:|---|---|:---:|:---:|:---:|
-| [#1](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/1) | `feat: Khởi tạo Spring Boot 3.3 skeleton, cấu trúc package và công cụ build Maven` | Foundation | P0 | M (3h) | Ready |
-| [#2](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/2) | `feat: Cấu hình chuẩn hóa xử lý lỗi GlobalExceptionHandler theo chuẩn RFC 7807` | Foundation / Error | P0 | S (2h) | Ready |
-| [#3](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/3) | `feat: Thiết lập cấu hình PostgreSQL và Flyway migration script V1 (Init Schema & Indexes)` | Database | P0 | M (3h) | Ready |
-| [#4](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/4) | `feat: Phát triển CRUD danh mục sản phẩm và API cây phân cấp cha-con` | Category | P1 | M (3h) | Ready |
-| [#5](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/5) | `feat: Quản lý thuộc tính chuẩn (Attributes) và giá trị chuẩn (Attribute Values)` | Dictionary | P0 | M (3h) | Ready |
-| [#6](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/6) | `feat: Quản lý từ điển Alias cho thuộc tính và giá trị kèm cơ chế chống xung đột` | Dictionary | P0 | M (3h) | Ready |
-| [#7](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/7) | `feat: Phát triển API tạo và cập nhật sản phẩm hỗ trợ lưu trữ kép (Raw Attributes JSONB)` | Product Ingestion | P0 | M (4h) | Ready |
-| [#8](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/8) | `feat: Xây dựng Normalization Engine theo quy tắc xác thực (Deterministic Rule-based Resolver)` | Normalization | P0 | L (4h) | Ready |
-| [#9](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/9) | `feat: Phát triển API tái chuẩn hóa (Re-normalization) cho sản phẩm cũ khi có Alias mới` | Normalization | P1 | M (3h) | Ready |
-| [#10](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/10) | `feat: Xây dựng bộ lọc tìm kiếm sản phẩm đa diện (Faceted Search) và phân trang trên PostgreSQL` | Search & Facet | P0 | L (4h) | Ready |
-| [#11](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/11) | `test: Viết bộ kiểm thử tích hợp (Integration Tests) với Testcontainers PostgreSQL` | Testing | P0 | M (4h) | Ready |
-| [#12](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/12) | `ci: Đóng gói Dockerfile multi-stage và docker-compose.yml khởi chạy trọn gói` | DevOps | P1 | S (2h) | Ready |
-| [#13](https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search/issues/13) | `docs: Tích hợp Swagger/OpenAPI 3.0 và viết kịch bản dữ liệu mẫu (Seed Data)` | Docs & Demo | P1 | S (2h) | Ready |
+| [#1](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/1) | `feat: Khởi tạo Spring Boot 3.3 skeleton, cấu trúc package và công cụ build Maven` | Foundation | P0 | M (3h) | Ready |
+| [#2](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/2) | `feat: Cấu hình chuẩn hóa xử lý lỗi GlobalExceptionHandler theo chuẩn RFC 7807` | Foundation / Error | P0 | S (2h) | Ready |
+| [#3](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/3) | `feat: Thiết lập cấu hình PostgreSQL và Flyway migration script V1 (Init Schema & Indexes)` | Database | P0 | M (3h) | Ready |
+| [#4](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/4) | `feat: Phát triển CRUD danh mục sản phẩm và API cây phân cấp cha-con` | Category | P1 | M (3h) | Ready |
+| [#5](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/5) | `feat: Quản lý thuộc tính chuẩn (Attributes) và giá trị chuẩn (Attribute Values)` | Dictionary | P0 | M (3h) | Ready |
+| [#6](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/6) | `feat: Quản lý từ điển Alias cho thuộc tính và giá trị kèm cơ chế chống xung đột` | Dictionary | P0 | M (3h) | Ready |
+| [#7](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/7) | `feat: Phát triển API tạo và cập nhật sản phẩm hỗ trợ lưu trữ kép (Raw Attributes JSONB)` | Product Ingestion | P0 | M (4h) | Ready |
+| [#8](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/8) | `feat: Xây dựng Normalization Engine theo quy tắc xác thực (Deterministic Rule-based Resolver)` | Normalization | P0 | L (4h) | Ready |
+| [#9](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/9) | `feat: Phát triển API tái chuẩn hóa (Re-normalization) cho sản phẩm cũ khi có Alias mới` | Normalization | P1 | M (3h) | Ready |
+| [#10](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/10) | `feat: Xây dựng bộ lọc tìm kiếm sản phẩm đa diện (Faceted Search) và phân trang trên PostgreSQL` | Search & Facet | P0 | L (4h) | Ready |
+| [#11](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/11) | `test: Viết bộ kiểm thử tích hợp (Integration Tests) với Testcontainers PostgreSQL` | Testing | P0 | M (4h) | Ready |
+| [#12](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/12) | `ci: Đóng gói Dockerfile multi-stage và docker-compose.yml khởi chạy trọn gói` | DevOps | P1 | S (2h) | Ready |
+| [#13](https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend/issues/13) | `docs: Tích hợp Swagger/OpenAPI 3.0 và viết kịch bản dữ liệu mẫu (Seed Data)` | Docs & Demo | P1 | S (2h) | Ready |
 
 ---
 
