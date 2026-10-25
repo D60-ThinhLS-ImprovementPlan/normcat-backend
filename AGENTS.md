@@ -63,7 +63,7 @@ Tài liệu này lưu trữ toàn bộ ngữ cảnh dự án và quy tắc hoạ
   - **TUYỆT ĐỐI KHÔNG PUSH TRỰC TIẾP LÊN `develop` HOẶC `master`!**
   - Mọi công việc (tính năng, sửa lỗi, tài liệu) bắt buộc phải tạo nhánh riêng (`feature/**`, `docs/**`, `fix/**`) bắt nguồn từ `develop`.
   - Push nhánh đó lên remote và tạo Pull Request (PR) để merge vào `develop`.
-- **Remote URL:** `https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search.git`
+- **Remote URL:** `https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend.git`
 - **Nhánh chính:**
   - `master`: Phiên bản ổn định, dùng để demo hoặc deploy.
   - `develop`: Tích hợp các tính năng đang phát triển (bảo vệ, không push trực tiếp).

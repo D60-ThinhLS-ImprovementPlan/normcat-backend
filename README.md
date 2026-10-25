@@ -46,8 +46,8 @@ Trong các sàn thương mại điện tử hoặc hệ thống bán lẻ đa k�
 
 ### 1. Clone repository
 ```bash
-git clone https://github.com/D60-ThinhLS-ImprovementPlan/product-catalog-search.git
-cd product-catalog-search
+git clone https://github.com/D60-ThinhLS-ImprovementPlan/normcat-backend.git
+cd normcat-backend
 ```
 
 ### 2. Khởi chạy bằng Docker Compose

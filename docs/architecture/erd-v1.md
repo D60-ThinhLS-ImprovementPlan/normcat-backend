@@ -1,6 +1,6 @@
-# NORMCAT — DATABASE DESIGN & ERD v1
+# NORMCAT — DATABASE DESIGN & ERD v1 (UPDATED)
 
-Tài liệu này định nghĩa chi tiết mô hình cơ sở dữ liệu v1 cho dự án **NormCat**, bao gồm sơ đồ quan hệ thực thể (ERD Mermaid), cấu trúc bảng, khóa chính/ngoại, ràng buộc toàn vẹn và chiến lược đánh index trên PostgreSQL 16.
+Tài liệu này định nghĩa chi tiết mô hình cơ sở dữ liệu v1 cho dự án **NormCat**, bao gồm sơ đồ thực thể (ERD Mermaid), cấu trúc 7 bảng, ràng buộc toàn vẹn, composite foreign keys, expression indexes và cơ chế kiểm soát đơn trị / đa trị trên PostgreSQL 16.
 
 ---
 
@@ -14,7 +14,7 @@ erDiagram
     ATTRIBUTES ||--o{ ATTRIBUTE_VALUES : "has standard values"
     ATTRIBUTES ||--o{ ATTRIBUTE_ALIASES : "maps raw attribute names"
     
-    ATTRIBUTE_VALUES ||--o{ ATTRIBUTE_VALUE_ALIASES : "maps raw value names"
+    ATTRIBUTE_VALUES ||--o{ ATTRIBUTE_VALUE_ALIASES : "maps raw value names (Composite FK)"
     
     PRODUCTS ||--o{ PRODUCT_ATTRIBUTE_VALUES : "has normalized attributes"
     ATTRIBUTES ||--o{ PRODUCT_ATTRIBUTE_VALUES : "defines attribute of"
@@ -24,7 +24,7 @@ erDiagram
         bigint id PK
         varchar_100 name "Tên danh mục"
         varchar_120 slug UK "Slug duy nhất"
-        bigint parent_id FK "Danh mục cha (nullable)"
+        bigint parent_id FK "Danh mục cha (nullable, ON DELETE SET NULL)"
         text description "Mô tả"
         boolean is_active "Trạng thái kích hoạt"
         timestamptz created_at
@@ -35,7 +35,8 @@ erDiagram
         bigint id PK
         varchar_50 code UK "Mã chuẩn (COLOR, SIZE, RAM)"
         varchar_100 name "Tên hiển thị chuẩn (Màu sắc, Kích cỡ)"
-        varchar_20 data_type "STRING, NUMBER, BOOLEAN"
+        varchar_20 data_type "CHECK: STRING, NUMBER, BOOLEAN"
+        boolean is_multi_valued "Đơn trị hay đa trị (default: false)"
         boolean is_filterable "Hiển thị trên bộ lọc facet"
         timestamptz created_at
         timestamptz updated_at
@@ -43,26 +44,26 @@ erDiagram
 
     ATTRIBUTE_VALUES {
         bigint id PK
-        bigint attribute_id FK "Thuộc tính cha"
+        bigint attribute_id FK "Thuộc tính cha (ON DELETE CASCADE)"
         varchar_50 code "Mã giá trị (RED, BURGUNDY, XL)"
         varchar_100 display_value "Tên hiển thị (Đỏ, Đỏ đô, XL)"
-        int sort_order "Thứ tự sắp xếp hiển thị"
+        int sort_order "CHECK: sort_order >= 0"
         timestamptz created_at
         timestamptz updated_at
     }
 
     ATTRIBUTE_ALIASES {
         bigint id PK
-        bigint attribute_id FK "Thuộc tính chuẩn"
-        varchar_100 raw_attribute_name UK "Tên gốc (màu, colour, màu sắc)"
+        bigint attribute_id FK "Thuộc tính chuẩn (ON DELETE CASCADE)"
+        varchar_100 raw_attribute_name "Tên gốc (Expression Index: LOWER(TRIM()))"
         timestamptz created_at
     }
 
     ATTRIBUTE_VALUE_ALIASES {
         bigint id PK
         bigint attribute_id FK "Thuộc tính sở hữu"
-        bigint attribute_value_id FK "Giá trị chuẩn"
-        varchar_100 raw_value "Giá trị gốc (đỏ, red, màu đỏ)"
+        bigint attribute_value_id FK "Giá trị chuẩn (Composite FK)"
+        varchar_100 raw_value "Giá trị gốc (Expression Index: LOWER(TRIM()))"
         timestamptz created_at
     }
 
@@ -70,119 +71,178 @@ erDiagram
         bigint id PK
         varchar_50 sku UK "Mã SKU duy nhất"
         varchar_255 name "Tên sản phẩm"
-        bigint category_id FK "Danh mục chính"
-        numeric_14_2 price "Giá bán niêm yết"
-        varchar_20 status "ACTIVE, INACTIVE, DRAFT"
-        jsonb raw_attributes "Dữ liệu gốc nhà cung cấp gửi"
-        varchar_30 normalization_status "NORMALIZED, PARTIALLY_NORMALIZED, FAILED"
+        bigint category_id FK "Danh mục chính (ON DELETE RESTRICT)"
+        numeric_14_2 price "CHECK: price >= 0"
+        varchar_20 status "CHECK: ACTIVE, INACTIVE, DRAFT"
+        jsonb raw_attributes "Dữ liệu gốc nhà cung cấp gửi (Immutable snapshot)"
+        varchar_30 normalization_status "CHECK: NORMALIZED, PARTIALLY_NORMALIZED, FAILED"
+        bigint version "Optimistic Locking (@Version)"
         timestamptz created_at
         timestamptz updated_at
-        bigint version "Optimistic Locking"
     }
 
     PRODUCT_ATTRIBUTE_VALUES {
         bigint id PK
-        bigint product_id FK "Sản phẩm"
-        bigint attribute_id FK "Thuộc tính chuẩn"
-        bigint attribute_value_id FK "Giá trị chuẩn"
+        bigint product_id FK "Sản phẩm (ON DELETE CASCADE)"
+        bigint attribute_id FK "Thuộc tính chuẩn (ON DELETE CASCADE)"
+        bigint attribute_value_id FK "Giá trị chuẩn (ON DELETE CASCADE)"
         timestamptz created_at
     }
 ```
 
 ---
 
-## 2. DATA DICTIONARY CHI TIẾT
+## 2. DATA DICTIONARY CHI TIẾT & RÀNG BUỘC TOÀN VẸN
 
 ### 2.1. Bảng `categories`
-- **Mục đích:** Quản lý danh mục hàng hóa theo cây phân cấp.
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `name`: `VARCHAR(100) NOT NULL`
-  - `slug`: `VARCHAR(120) NOT NULL UNIQUE`
-  - `parent_id`: `BIGINT NULL REFERENCES categories(id) ON DELETE SET NULL`
-  - `description`: `TEXT NULL`
-  - `is_active`: `BOOLEAN NOT NULL DEFAULT TRUE`
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
-  - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `name`: `VARCHAR(100) NOT NULL`
+- `slug`: `VARCHAR(120) NOT NULL UNIQUE`
+- `parent_id`: `BIGINT NULL REFERENCES categories(id) ON DELETE SET NULL`
+- `description`: `TEXT NULL`
+- `is_active`: `BOOLEAN NOT NULL DEFAULT TRUE`
+- `created_at`, `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### 2.2. Bảng `attributes`
-- **Mục đích:** Định nghĩa các thuộc tính chuẩn hóa của hệ thống.
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `code`: `VARCHAR(50) NOT NULL UNIQUE` (ví dụ: `COLOR`, `SIZE`, `STORAGE`)
-  - `name`: `VARCHAR(100) NOT NULL` (ví dụ: "Màu sắc", "Kích cỡ")
-  - `data_type`: `VARCHAR(20) NOT NULL DEFAULT 'STRING'` (`STRING`, `NUMBER`, `BOOLEAN`)
-  - `is_filterable`: `BOOLEAN NOT NULL DEFAULT TRUE`
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
-  - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `code`: `VARCHAR(50) NOT NULL UNIQUE`
+- `name`: `VARCHAR(100) NOT NULL`
+- `data_type`: `VARCHAR(20) NOT NULL DEFAULT 'STRING'`
+  - **Constraint:** `CHECK (data_type IN ('STRING', 'NUMBER', 'BOOLEAN'))`
+- `is_multi_valued`: `BOOLEAN NOT NULL DEFAULT FALSE`
+  - *Ý nghĩa:* Thuộc tính đơn trị (`FALSE` - e.g. `BRAND`, `RAM`) chỉ cho phép tối đa 1 giá trị trên 1 sản phẩm. Thuộc tính đa trị (`TRUE` - e.g. `COLOR`, `MATERIAL`) cho phép nhiều giá trị.
+- `is_filterable`: `BOOLEAN NOT NULL DEFAULT TRUE`
+- `created_at`, `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### 2.3. Bảng `attribute_values`
-- **Mục đích:** Định nghĩa các giá trị chuẩn hợp lệ của từng thuộc tính.
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
-  - `code`: `VARCHAR(50) NOT NULL` (ví dụ: `RED`, `BURGUNDY`, `XL`)
-  - `display_value`: `VARCHAR(100) NOT NULL` (ví dụ: "Đỏ", "Đỏ đô", "Extra Large")
-  - `sort_order`: `INT NOT NULL DEFAULT 0`
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
-  - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
+- `code`: `VARCHAR(50) NOT NULL`
+- `display_value`: `VARCHAR(100) NOT NULL`
+- `sort_order`: `INT NOT NULL DEFAULT 0 CHECK (sort_order >= 0)`
+- `created_at`, `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
 - **Ràng buộc:**
   - `UNIQUE (attribute_id, code)`
+  - `UNIQUE (id, attribute_id)` *(bổ sung để làm đích tham chiếu cho Composite Foreign Key từ bảng alias)*
 
 ### 2.4. Bảng `attribute_aliases`
-- **Mục đích:** Ánh xạ tên thuộc tính từ nhà cung cấp về thuộc tính chuẩn.
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
-  - `raw_attribute_name`: `VARCHAR(100) NOT NULL UNIQUE` (lowercase & trim, ví dụ: `'màu'`, `'colour'`, `'màu sắc'`)
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
+- `raw_attribute_name`: `VARCHAR(100) NOT NULL`
+- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- **Functional Unique Index:**
+  ```sql
+  CREATE UNIQUE INDEX uq_attr_alias_normalized 
+  ON attribute_aliases (LOWER(TRIM(raw_attribute_name)));
+  ```
 
 ### 2.5. Bảng `attribute_value_aliases`
-- **Mục đích:** Ánh xạ giá trị thô từ nhà cung cấp về giá trị chuẩn.
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
-  - `attribute_value_id`: `BIGINT NOT NULL REFERENCES attribute_values(id) ON DELETE CASCADE`
-  - `raw_value`: `VARCHAR(100) NOT NULL` (lowercase & trim, ví dụ: `'đỏ'`, `'red'`, `'màu đỏ'`)
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
-- **Ràng buộc vàng (Data Integrity):**
-  - `UNIQUE (attribute_id, raw_value)`
-  - *Ý nghĩa:* Trong cùng một thuộc tính (ví dụ `COLOR`), chuỗi thô `'đỏ'` đã map vào `RED` thì không thể map vào `BURGUNDY`.
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `attribute_id`: `BIGINT NOT NULL`
+- `attribute_value_id`: `BIGINT NOT NULL`
+- `raw_value`: `VARCHAR(100) NOT NULL`
+- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- **Composite Foreign Key (Đảm bảo nhất quán 100%):**
+  ```sql
+  CONSTRAINT fk_val_alias_attr_val
+  FOREIGN KEY (attribute_value_id, attribute_id)
+  REFERENCES attribute_values(id, attribute_id) ON DELETE CASCADE
+  ```
+- **Functional Unique Index (Chống trùng lặp & xung đột alias):**
+  ```sql
+  CREATE UNIQUE INDEX uq_val_alias_normalized 
+  ON attribute_value_aliases (attribute_id, LOWER(TRIM(raw_value)));
+  ```
 
 ### 2.6. Bảng `products`
-- **Mục đích:** Quản lý thông tin chính của sản phẩm, lưu trữ dữ liệu thô gốc.
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `sku`: `VARCHAR(50) NOT NULL UNIQUE`
-  - `name`: `VARCHAR(255) NOT NULL`
-  - `category_id`: `BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT`
-  - `price`: `NUMERIC(14,2) NOT NULL`
-  - `status`: `VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'` (`ACTIVE`, `INACTIVE`, `DRAFT`)
-  - `raw_attributes`: `JSONB NOT NULL DEFAULT '{}'::jsonb`
-  - `normalization_status`: `VARCHAR(30) NOT NULL DEFAULT 'PENDING'` (`NORMALIZED`, `PARTIALLY_NORMALIZED`, `FAILED`)
-  - `version`: `BIGINT NOT NULL DEFAULT 0` (Optimistic Locking)
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
-  - `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `sku`: `VARCHAR(50) NOT NULL UNIQUE`
+- `name`: `VARCHAR(255) NOT NULL`
+- `category_id`: `BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT`
+- `price`: `NUMERIC(14,2) NOT NULL CHECK (price >= 0)`
+- `status`: `VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'DRAFT'))`
+- `raw_attributes`: `JSONB NOT NULL DEFAULT '{}'::jsonb`
+- `normalization_status`: `VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (normalization_status IN ('NORMALIZED', 'PARTIALLY_NORMALIZED', 'FAILED'))`
+- `version`: `BIGINT NOT NULL DEFAULT 0` *(Optimistic Locking `@Version`)*
+- `created_at`, `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### 2.7. Bảng `product_attribute_values`
-- **Mục đích:** Cầu nối liên kết N-N giữa sản phẩm và giá trị chuẩn hóa, phục vụ bộ lọc đa chiều (Faceted Search).
-- **Cột & Kiểu dữ liệu:**
-  - `id`: `BIGSERIAL PRIMARY KEY`
-  - `product_id`: `BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE`
-  - `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
-  - `attribute_value_id`: `BIGINT NOT NULL REFERENCES attribute_values(id) ON DELETE CASCADE`
-  - `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
-- **Ràng buộc:**
-  - `UNIQUE (product_id, attribute_id, attribute_value_id)`
+- `id`: `BIGSERIAL PRIMARY KEY`
+- `product_id`: `BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE`
+- `attribute_id`: `BIGINT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE`
+- `attribute_value_id`: `BIGINT NOT NULL REFERENCES attribute_values(id) ON DELETE CASCADE`
+- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- **Unique Constraint:**
+  - `UNIQUE (product_id, attribute_id, attribute_value_id)` *(ngăn chặn insert lặp cùng một giá trị cho một sản phẩm)*
 
 ---
 
 ## 3. CHIẾN LƯỢC INDEXING (POSTGRESQL PERFORMANCE TUNING)
 
-| Bảng | Tên Index | Cột Index | Loại Index | Mục đích kỹ thuật |
+| Bảng | Tên Index | Định nghĩa Index | Loại Index | Mục đích kỹ thuật |
 |---|---|---|---|---|
-| `products` | `idx_products_category_status` | `(category_id, status)` | B-Tree | Tối ưu khi lọc danh sách sản phẩm theo danh mục và trạng thái ACTIVE. |
-| `products` | `idx_products_price` | `(price)` | B-Tree | Tối ưu lọc theo khoảng giá `minPrice` - `maxPrice` và sắp xếp giá tăng/giảm. |
-| `product_attribute_values` | `idx_pav_search` | `(attribute_id, attribute_value_id, product_id)` | B-Tree (Composite) | **Index cốt lõi cho Facet Search:** Khi filter `COLOR=RED`, Postgres chỉ cần Index Scan trên index này để lấy ngay danh sách `product_id`. |
-| `product_attribute_values` | `idx_pav_product` | `(product_id)` | B-Tree | Tối ưu truy vấn lấy toàn bộ thuộc tính chuẩn của 1 sản phẩm khi xem chi tiết. |
-| `attribute_value_aliases` | `idx_ava_lookup` | `(attribute_id, raw_value)` | B-Tree | Tối ưu cho Normalization Engine khi tra cứu alias cực nhanh với độ phức tạp $O(\log N)$. |
+| `products` | `idx_products_category_status` | `(category_id, status)` | B-Tree | Tối ưu lọc sản phẩm theo danh mục và trạng thái ACTIVE. |
+| `products` | `idx_products_price` | `(price)` | B-Tree | Tối ưu lọc khoảng giá `minPrice` - `maxPrice` và sắp xếp giá. |
+| `product_attribute_values` | `idx_pav_search` | `(attribute_id, attribute_value_id, product_id)` | B-Tree (Composite) | **Index cốt lõi cho Faceted Search:** Lọc sản phẩm theo thuộc tính chuẩn hóa siêu tốc. |
+| `product_attribute_values` | `idx_pav_product` | `(product_id)` | B-Tree | Tối ưu lấy toàn bộ thuộc tính chuẩn của 1 sản phẩm khi xem chi tiết. |
+| `attribute_aliases` | `uq_attr_alias_normalized` | `(LOWER(TRIM(raw_attribute_name)))` | Functional Unique | Chống trùng lặp và tìm kiếm alias không phân biệt hoa/thường/khoảng trắng. |
+| `attribute_value_aliases` | `uq_val_alias_normalized` | `(attribute_id, LOWER(TRIM(raw_value)))` | Functional Unique | Tra cứu bí danh giá trị cực nhanh $O(\log N)$ và chống xung đột trong cùng thuộc tính. |
+
+---
+
+## 4. QUY TẮC NGHIỆP VỤ & LUỒNG THỰC THI (EXECUTION FLOW)
+
+### 4.1. Cơ chế kiểm soát Đơn trị vs Đa trị (`is_multi_valued`)
+- **Tại sao Database không thể tự kiểm soát đơn trị?**
+  Unique constraint `(product_id, attribute_id, attribute_value_id)` ở bảng liên kết chỉ ngăn bản ghi trùng lặp (ví dụ không thể gán 2 lần giá trị `RED`). Nhưng nó **không thể ngăn** việc gán vừa `RED` vừa `BLUE` cho một thuộc tính.
+- **Giải pháp xử lý tại Backend Service:**
+  Khi Normalization Engine chuẩn bị lưu các giá trị chuẩn vào `product_attribute_values`:
+  1. Kiểm tra cờ `is_multi_valued` của thuộc tính.
+  2. Nếu `is_multi_valued == FALSE` (Đơn trị):
+     - Đảm bảo trong payload hoặc trong DB của sản phẩm này chỉ có **tối đa 1 giá trị duy nhất**.
+     - Nếu payload gửi nhiều giá trị cho thuộc tính đơn trị: Báo lỗi nghiệp vụ `BusinessException("Single-valued attribute cannot have multiple values")` hoặc lấy giá trị đầu tiên theo cấu hình.
+  3. Nếu `is_multi_valued == TRUE` (Đa trị):
+     - Cho phép lưu nhiều bản ghi giá trị khác nhau cho cùng một thuộc tính.
+- **Bảo vệ Concurrency (Optimistic Locking):**
+  - Sử dụng `@Version private Long version` trên `Product` entity. Khi 2 request đồng thời cùng cố gắng cập nhật thuộc tính của 1 sản phẩm, request thứ hai sẽ bị từ chối với `OptimisticLockingFailureException`, ngăn chặn triệt để race condition phá vỡ quy tắc đơn trị!
+
+### 4.2. Sơ đồ chu trình xử lý (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Supplier as Supplier / Vendor
+    participant API as ProductController
+    participant Service as ProductService
+    participant Engine as NormalizationEngine
+    participant DB as PostgreSQL DB
+
+    Supplier->>API: POST /api/v1/products (Raw Payload)
+    API->>Service: createProduct(request)
+    activate Service
+
+    Service->>DB: Check SKU uniqueness
+    DB-->>Service: Valid (OK)
+
+    Service->>Engine: normalize(rawAttributes)
+    activate Engine
+    loop Mỗi cặp rawKey : rawValue
+        Engine->>DB: Lookup Attribute by LOWER(TRIM(rawKey))
+        DB-->>Engine: Standard Attribute (is_multi_valued, code)
+        Engine->>DB: Lookup Value by (attribute_id, LOWER(TRIM(rawValue)))
+        DB-->>Engine: Standard Value (code, display_value)
+    end
+    Engine-->>Service: NormalizationResult (Resolved, Unresolved)
+    deactivate Engine
+
+    Note over Service: Kiểm tra quy tắc Đơn trị (is_multi_valued)
+    alt is_multi_valued == FALSE và số giá trị > 1
+        Service-->>API: 400 Bad Request (Attribute is single-valued)
+    else Hợp lệ
+        Service->>DB: INSERT into products (raw_attributes, status, version=0)
+        Service->>DB: INSERT into product_attribute_values (matched attributes)
+        Service-->>API: ProductResponse (201 Created)
+    end
+    deactivate Service
+    API-->>Supplier: Response JSON
+```
