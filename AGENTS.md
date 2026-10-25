@@ -81,4 +81,16 @@ Tài liệu này lưu trữ toàn bộ ngữ cảnh dự án và quy tắc hoạ
 - `README.md`: Hướng dẫn khởi chạy và giới thiệu tổng quan dự án.
 - `docs/architecture/erd-v1.md`: Thiết kế chi tiết cơ sở dữ liệu v1 (ERD Mermaid, Data Dictionary, Indexing).
 - `docs/architecture/system-design.md`: Kiến trúc tổng thể Modular Monolith, Package Structure, Transaction & Error Handling.
+- `docs/architecture/api-specification.md`: Đặc tả chi tiết toàn bộ các REST API.
+- `docs/architecture/coding-conventions.md`: Quy chuẩn viết code, xử lý ngoại lệ và mẫu response DTO.
 - `docs/project/roadmap.md`: Lộ trình 30 ngày và danh sách GitHub Issues.
+
+---
+
+## 6. QUY ƯỚC LẬP TRÌNH & XỬ LÝ LỖI (FAIL-FAST & LET IT BUBBLE)
+
+- **Không try-catch bừa bãi:** Không try-catch thủ công trong Service/Controller. Hãy để Exception tự do bay lên (`bubble up`) để `GlobalExceptionHandler` bắt và chuyển sang RFC 7807 Problem Details.
+- **ResourceNotFoundException:** Dùng khi `.orElseThrow(...)` không tìm thấy thực thể (HTTP 404).
+- **ConflictException:** Dùng khi trùng SKU, slug hoặc alias (HTTP 409).
+- **BusinessException:** Dùng kèm `ErrorCode` khi vi phạm logic nghiệp vụ (e.g. `SINGLE_VALUE_VIOLATION`) (HTTP 400).
+- **ApiResponse<T>:** Toàn bộ Controller trả về thành công đều bọc trong `ApiResponse.ok(...)` hoặc `ApiResponse.created(...)`.
